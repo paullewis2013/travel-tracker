@@ -1,0 +1,14 @@
+services:
+  travel-tracker:
+    build: .
+    ports:
+      - "8080:5000"
+    volumes:
+      - travel-data:/data      # persistent SQLite storage
+      - ./app:/app             # live reload during dev (optional)
+    environment:
+      - DB_PATH=/data/travel.db
+    restart: unless-stopped
+
+volumes:
+  travel-data:

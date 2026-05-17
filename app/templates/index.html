@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Travel Map</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --accent: #fb923c;
+    --accent2: #4ecdc4;
+    --visited-state: #fb923c;
+    --visited-country: #4ecdc4;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+  }
+
+  header {
+    padding: 2rem 3rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  header h1 span { color: var(--accent); }
+
+  .stats { display: flex; gap: 2rem; margin-left: auto; }
+  .stat { text-align: right; }
+  .stat-num { font-size: 1.8rem; font-weight: 500; line-height: 1; }
+  .stat-num.states { color: var(--accent); }
+  .stat-num.countries { color: var(--accent2); }
+  .stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+
+  .tabs {
+    display: flex;
+    padding: 1.5rem 3rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    padding: 0.6rem 1.5rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    margin-bottom: -1px;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab.active.world { color: var(--accent2); border-bottom-color: var(--accent2); }
+
+  .panel { display: none; padding: 2rem 3rem; }
+  .panel.active { display: block; }
+
+  .map-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  #us-map-leaflet, #world-map-leaflet {
+    height: 560px;
+    background: var(--bg);
+  }
+
+  .leaflet-container { background: #0d1117 !important; }
+  .leaflet-tile-pane { filter: brightness(0.85) saturate(0.6); }
+
+  .map-tooltip {
+    background: #161b22 !important;
+    border: 1px solid #30363d !important;
+    color: #e6edf3 !important;
+    font-family: 'DM Mono', monospace !important;
+    font-size: 0.75rem !important;
+    padding: 4px 10px !important;
+    border-radius: 3px !important;
+    box-shadow: none !important;
+  }
+  .map-tooltip::before { display: none !important; }
+
+  .legend {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1rem;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .legend-item { display: flex; align-items: center; gap: 0.4rem; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 0.8rem 1.2rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s;
+    pointer-events: none;
+    z-index: 9999;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.remove { border-left-color: #f85149; }
+
+  .list-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 1.5rem;
+  }
+  .list-section h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .list-section h3 span { color: var(--accent); }
+  .list-section.world-section h3 span { color: var(--accent2); }
+
+  .place-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.7rem;
+    margin: 0.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .place-chip:hover { border-color: #f85149; color: #f85149; }
+  .place-chip .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .place-chip .dot.state { background: var(--accent); }
+  .place-chip .dot.country { background: var(--accent2); }
+  .place-chip .remove { opacity: 0.5; font-size: 0.6rem; }
+  .place-chip:hover .remove { opacity: 1; }
+
+  .empty-msg { color: var(--text-muted); font-size: 0.75rem; font-style: italic; padding: 0.5rem 0; }
+
+  @media (max-width: 700px) {
+    header, .tabs, .panel { padding-left: 1rem; padding-right: 1rem; }
+    .list-grid { grid-template-columns: 1fr; }
+    .stats { gap: 1rem; }
+    #us-map-leaflet, #world-map-leaflet { height: 380px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span>Travel</span> Map</h1>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num states" id="state-count">0</div>
+      <div class="stat-label">US States</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num countries" id="country-count">0</div>
+      <div class="stat-label">Countries</div>
+    </div>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('us')">🇺🇸 US States</button>
+  <button class="tab world" onclick="switchTab('world')">🌍 World</button>
+  <button class="tab" onclick="switchTab('list')">📋 My List</button>
+</div>
+
+<div class="panel active" id="panel-us">
+  <div class="map-container">
+    <div id="us-map-leaflet"></div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--visited-state)"></div>Visited</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#21262d;border:1px solid var(--border)"></div>Not visited</div>
+  </div>
+  <p style="font-size:0.7rem;color:var(--text-muted);margin-top:0.5rem">Click any state to toggle visited status</p>
+</div>
+
+<div class="panel" id="panel-world">
+  <div class="map-container">
+    <div id="world-map-leaflet"></div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--visited-country)"></div>Visited</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#21262d;border:1px solid var(--border)"></div>Not visited</div>
+  </div>
+  <p style="font-size:0.7rem;color:var(--text-muted);margin-top:0.5rem">Click any country to toggle visited status</p>
+</div>
+
+<div class="panel" id="panel-list">
+  <div class="list-grid">
+    <div class="list-section">
+      <h3>🇺🇸 US States <span id="list-state-count">(0)</span></h3>
+      <div id="state-list"></div>
+    </div>
+    <div class="list-section world-section">
+      <h3>🌍 Countries <span id="list-country-count">(0)</span></h3>
+      <div id="country-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+  // visited Map keyed by "kind:code" e.g. "state:CA", "country:FR"
+  // Namespacing prevents collisions e.g. CA = California AND Canada
+  let visited = new Map();
+  const serverData = {{ visited | tojson }};
+  serverData.forEach(item => {
+    const rawCode = item.code.includes(':') ? item.code.split(':').slice(1).join(':') : item.code;
+    const key = `${item.kind}:${rawCode}`;
+    visited.set(key, { ...item, rawCode });
+  });
+
+  let usMap, usGeoLayer;
+  let worldMap, worldGeoLayer;
+
+  const STATE_CODES = {
+    "Alabama":"AL","Alaska":"AK","Arizona":"AZ","Arkansas":"AR","California":"CA",
+    "Colorado":"CO","Connecticut":"CT","Delaware":"DE","Florida":"FL","Georgia":"GA",
+    "Hawaii":"HI","Idaho":"ID","Illinois":"IL","Indiana":"IN","Iowa":"IA",
+    "Kansas":"KS","Kentucky":"KY","Louisiana":"LA","Maine":"ME","Maryland":"MD",
+    "Massachusetts":"MA","Michigan":"MI","Minnesota":"MN","Mississippi":"MS",
+    "Missouri":"MO","Montana":"MT","Nebraska":"NE","Nevada":"NV","New Hampshire":"NH",
+    "New Jersey":"NJ","New Mexico":"NM","New York":"NY","North Carolina":"NC",
+    "North Dakota":"ND","Ohio":"OH","Oklahoma":"OK","Oregon":"OR","Pennsylvania":"PA",
+    "Rhode Island":"RI","South Carolina":"SC","South Dakota":"SD","Tennessee":"TN",
+    "Texas":"TX","Utah":"UT","Vermont":"VT","Virginia":"VA","Washington":"WA",
+    "West Virginia":"WV","Wisconsin":"WI","Wyoming":"WY","District of Columbia":"DC"
+  };
+
+  function resolveStateCode(props) {
+    return props.abbreviation || props.postal || props.STUSPS || STATE_CODES[props.name] || props.name;
+  }
+
+  function resolveCountryCode(props) {
+    const a2    = props['ISO_A2'];
+    const a2_eh = props['ISO_A2_EH'];
+    const a3    = props['ISO_A3'];
+    const a3_eh = props['ISO_A3_EH'];
+    if (a2    && a2    !== '-99') return a2;
+    if (a2_eh && a2_eh !== '-99') return a2_eh;
+    if (a3    && a3    !== '-99') return a3;
+    if (a3_eh && a3_eh !== '-99') return a3_eh;
+    return null;
+  }
+
+  function isStateVisited(rawCode)   { return visited.has(`state:${rawCode}`); }
+  function isCountryVisited(rawCode) { return visited.has(`country:${rawCode}`); }
+
+  // ── US Map ──────────────────────────────────────────────────────
+  async function initUSMap() {
+    usMap = L.map('us-map-leaflet', {
+      center: [38, -96], zoom: 4,
+      zoomControl: true, attributionControl: false
+    });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19, subdomains: 'abcd'
+    }).addTo(usMap);
+
+    try {
+      const res = await fetch('/static/geo/us-states.json');
+      const geojson = await res.json();
+      usGeoLayer = L.geoJSON(geojson, {
+        style: feature => stateStyle(resolveStateCode(feature.properties)),
+        onEachFeature: (feature, layer) => {
+          const rawCode = resolveStateCode(feature.properties);
+          const name = feature.properties.name;
+          feature.properties._rawCode = rawCode;
+          layer.bindTooltip(name, { sticky: true, className: 'map-tooltip' });
+          layer.on('click', () => toggle(rawCode, name, 'state'));
+        }
+      }).addTo(usMap);
+    } catch(e) { console.error('Failed to load US GeoJSON', e); }
+  }
+
+  function stateStyle(rawCode) {
+    return {
+      fillColor: isStateVisited(rawCode) ? '#fb923c' : '#21262d',
+      fillOpacity: isStateVisited(rawCode) ? 0.85 : 0.7,
+      color: '#0d1117', weight: 1
+    };
+  }
+
+  function refreshUSMap() {
+    if (!usGeoLayer) return;
+    usGeoLayer.eachLayer(layer => {
+      layer.setStyle(stateStyle(layer.feature.properties._rawCode));
+    });
+  }
+
+  // ── World Map ───────────────────────────────────────────────────
+  async function initWorldMap() {
+    worldMap = L.map('world-map-leaflet', {
+      center: [20, 10], zoom: 2,
+      zoomControl: true, attributionControl: false, minZoom: 2
+    });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19, subdomains: 'abcd'
+    }).addTo(worldMap);
+
+    try {
+      const res = await fetch('/static/geo/countries.geojson');
+      const geojson = await res.json();
+      worldGeoLayer = L.geoJSON(geojson, {
+        style: feature => countryStyle(resolveCountryCode(feature.properties)),
+        onEachFeature: (feature, layer) => {
+          const rawCode = resolveCountryCode(feature.properties);
+          const name = feature.properties.NAME || feature.properties.ADMIN;
+          feature.properties._rawCode = rawCode;
+          layer.bindTooltip(name, { sticky: true, className: 'map-tooltip' });
+          layer.on('click', () => toggle(rawCode, name, 'country'));
+        }
+      }).addTo(worldMap);
+    } catch(e) { console.error('Failed to load world GeoJSON', e); }
+  }
+
+  function countryStyle(rawCode) {
+    return {
+      fillColor: isCountryVisited(rawCode) ? '#4ecdc4' : '#21262d',
+      fillOpacity: isCountryVisited(rawCode) ? 0.85 : 0.7,
+      color: '#0d1117', weight: 0.5
+    };
+  }
+
+  function refreshWorldMap() {
+    if (!worldGeoLayer) return;
+    worldGeoLayer.eachLayer(layer => {
+      layer.setStyle(countryStyle(layer.feature.properties._rawCode));
+    });
+  }
+
+  // ── Shared ──────────────────────────────────────────────────────
+  async function toggle(rawCode, name, kind) {
+    if (!rawCode) return;
+    const key = `${kind}:${rawCode}`;
+    if (visited.has(key)) {
+      await fetch(`/api/visited/${kind}/${rawCode}`, { method: 'DELETE' });
+      visited.delete(key);
+      showToast(`Removed: ${name}`, 'remove');
+    } else {
+      await fetch('/api/visited', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: rawCode, name, kind })
+      });
+      visited.set(key, { rawCode, name, kind });
+      showToast(`Added: ${name}`);
+    }
+    refreshUSMap();
+    refreshWorldMap();
+    updateStats();
+    updateList();
+  }
+
+  async function toggleFromList(key) {
+    const item = visited.get(key);
+    if (item) await toggle(item.rawCode, item.name, item.kind);
+  }
+
+  function showToast(msg, type='add') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (type === 'remove' ? ' remove' : '');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.className = 'toast', 2400);
+  }
+
+  function updateStats() {
+    const states = [...visited.values()].filter(v => v.kind === 'state').length;
+    const countries = [...visited.values()].filter(v => v.kind === 'country').length;
+    document.getElementById('state-count').textContent = states;
+    document.getElementById('country-count').textContent = countries;
+    document.getElementById('list-state-count').textContent = `(${states})`;
+    document.getElementById('list-country-count').textContent = `(${countries})`;
+  }
+
+  function updateList() {
+    const states = [...visited.values()].filter(v => v.kind === 'state').sort((a,b) => a.name.localeCompare(b.name));
+    const countries = [...visited.values()].filter(v => v.kind === 'country').sort((a,b) => a.name.localeCompare(b.name));
+    document.getElementById('state-list').innerHTML = states.length
+      ? states.map(s => chip(s, `state:${s.rawCode}`)).join('')
+      : '<p class="empty-msg">No states visited yet</p>';
+    document.getElementById('country-list').innerHTML = countries.length
+      ? countries.map(c => chip(c, `country:${c.rawCode}`)).join('')
+      : '<p class="empty-msg">No countries visited yet</p>';
+  }
+
+  function chip(item, key) {
+    return `<span class="place-chip" onclick="toggleFromList('${key}')">
+      <span class="dot ${item.kind}"></span>${item.name}
+      <span class="remove">✕</span>
+    </span>`;
+  }
+
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach((t, i) => {
+      const names = ['us', 'world', 'list'];
+      t.classList.toggle('active', names[i] === name);
+      if (names[i] === 'world') t.classList.toggle('world', names[i] === name);
+    });
+    document.querySelectorAll('.panel').forEach(p => {
+      p.classList.toggle('active', p.id === `panel-${name}`);
+    });
+    if (name === 'us' && usMap) setTimeout(() => usMap.invalidateSize(), 50);
+    if (name === 'world') {
+      if (!worldMap) setTimeout(() => initWorldMap(), 50);
+      else setTimeout(() => worldMap.invalidateSize(), 50);
+    }
+  }
+
+  updateStats();
+  updateList();
+  initUSMap();
+</script>
+</body>
+</html>
