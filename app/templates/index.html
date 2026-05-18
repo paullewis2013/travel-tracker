@@ -14,62 +14,79 @@
   <h1><span>Travel</span> Map</h1>
   <div class="stats">
     <div class="stat">
-      <div class="stat-num states" id="state-count">0</div>
+      <div class="stat-num states" id="us-count">0</div>
       <div class="stat-label">US States</div>
     </div>
     <div class="stat">
-      <div class="stat-num countries" id="country-count">0</div>
+      <div class="stat-num countries" id="world-count">0</div>
       <div class="stat-label">Countries</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num parks" id="parks-count">0</div>
+      <div class="stat-label">Nat. Parks</div>
     </div>
   </div>
 </header>
 
 <div class="tabs">
-  <button class="tab active" onclick="switchTab('us')">🇺🇸 US States</button>
-  <button class="tab world" onclick="switchTab('world')">🌍 World</button>
-  <button class="tab" onclick="switchTab('list')">📋 My List</button>
+  <button class="tab active" data-tab="us" onclick="switchTab('us')">🇺🇸 US States</button>
+  <button class="tab" data-tab="world" data-accent="2" onclick="switchTab('world')">🌍 World</button>
+  <button class="tab" data-tab="parks" onclick="switchTab('parks')">🏕️ Parks</button>
+  <button class="tab" data-tab="list" onclick="switchTab('list')">📋 My List</button>
 </div>
 
 <div class="panel active" id="panel-us">
-  <div class="map-container">
-    <div id="us-map-leaflet"></div>
-  </div>
+  <div class="map-container"><div id="us-map-leaflet"></div></div>
   <div class="legend">
-    <div class="legend-item"><div class="legend-dot" style="background:var(--visited-state)"></div>Visited</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fb923c"></div>Visited</div>
     <div class="legend-item"><div class="legend-dot" style="background:#21262d;border:1px solid var(--border)"></div>Not visited</div>
   </div>
   <p style="font-size:0.7rem;color:var(--text-muted);margin-top:0.5rem">Click any state to toggle visited status</p>
 </div>
 
 <div class="panel" id="panel-world">
-  <div class="map-container">
-    <div id="world-map-leaflet"></div>
-  </div>
+  <div class="map-container"><div id="world-map-leaflet"></div></div>
   <div class="legend">
-    <div class="legend-item"><div class="legend-dot" style="background:var(--visited-country)"></div>Visited</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#4ecdc4"></div>Visited</div>
     <div class="legend-item"><div class="legend-dot" style="background:#21262d;border:1px solid var(--border)"></div>Not visited</div>
   </div>
   <p style="font-size:0.7rem;color:var(--text-muted);margin-top:0.5rem">Click any country to toggle visited status</p>
 </div>
 
+<div class="panel" id="panel-parks">
+  <div class="map-container"><div id="parks-map-leaflet"></div></div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div>Visited</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#21262d;border:1px solid var(--border)"></div>Not visited</div>
+  </div>
+  <p style="font-size:0.7rem;color:var(--text-muted);margin-top:0.5rem">Click any park to toggle visited status</p>
+</div>
+
 <div class="panel" id="panel-list">
   <div class="list-grid">
     <div class="list-section">
-      <h3>🇺🇸 US States <span id="list-state-count">(0)</span></h3>
-      <div id="state-list"></div>
+      <h3>🇺🇸 US States <span id="list-us-count">(0)</span></h3>
+      <div id="us-list"></div>
     </div>
     <div class="list-section world-section">
-      <h3>🌍 Countries <span id="list-country-count">(0)</span></h3>
-      <div id="country-list"></div>
+      <h3>🌍 Countries <span id="list-world-count">(0)</span></h3>
+      <div id="world-list"></div>
+    </div>
+    <div class="list-section parks-section">
+      <h3>🏕️ National Parks <span id="list-parks-count">(0)</span></h3>
+      <div id="parks-list"></div>
     </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
-<!-- Inject server data for map.js to consume -->
 <script>window.INITIAL_DATA = {{ visited | tojson }};</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<!-- Core must load first, then modules -->
 <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+<script src="{{ url_for('static', filename='js/maps/us-states.js') }}"></script>
+<script src="{{ url_for('static', filename='js/maps/world.js') }}"></script>
+<script src="{{ url_for('static', filename='js/maps/national-parks.js') }}"></script>
 </body>
 </html>

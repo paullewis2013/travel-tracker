@@ -75,7 +75,7 @@ header h1 span { color: var(--accent); }
   overflow: hidden;
 }
 
-#us-map-leaflet, #world-map-leaflet {
+#us-map-leaflet, #world-map-leaflet, #parks-map-leaflet {
   height: 560px;
   background: var(--bg);
 }

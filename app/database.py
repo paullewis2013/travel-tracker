@@ -15,7 +15,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS visited (
                 code TEXT PRIMARY KEY,
                 name TEXT,
-                kind TEXT NOT NULL CHECK(kind IN ('state', 'country')),
+                kind TEXT NOT NULL CHECK(kind IN ('state', 'country', 'park')),
                 visited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
