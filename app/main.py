@@ -1,3 +1,6 @@
+import os
+from flask import send_file, request
+from database import DB_PATH
 from flask import Flask, render_template, request, jsonify
 from database import init_db, get_visited, add_visited, remove_visited
 
@@ -6,10 +9,26 @@ app = Flask(__name__)
 # Run at import time so Gunicorn workers initialise the DB
 init_db()
 
+@app.route("/admin/export")
+def export_db():
+    return send_file(DB_PATH, as_attachment=True, download_name="travel-backup.db")
+
+@app.route("/admin/import", methods=["POST"])
+def import_db():
+    f = request.files.get("db")
+    if not f:
+        return "No file provided", 400
+    f.save(DB_PATH)
+    return "Imported successfully", 200
+
 @app.route("/")
 def index():
     visited = get_visited()
     return render_template("index.html", visited=visited)
+
+@app.route("/admin")
+def admin():
+    return render_template("admin.html")
 
 @app.route("/api/visited", methods=["GET"])
 def api_get_visited():
